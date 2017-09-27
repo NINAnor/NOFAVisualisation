@@ -9,15 +9,15 @@
 [general]
 name=NOFA Visualisation
 qgisMinimumVersion=2.0
-description=Loads layers with predefined styes from the NOFA database
+description=Load layers with predefined styles from NOFA database
 version=0.3
 author=Stefan Blumentrath - Norwegian Institute for Nature Research
 email=stefan dot blumentrath at nina dot no
 
-about=Loads layers with predefined styes from the NOFA database
+about=Load layers with predefined styles from the NOrwegian Fish Atlas database.
 
-tracker=https://github.com/NINAnor/invafish/issues
-repository=https://github.com/NINAnor/invafish
+tracker=https://github.com/NINAnor/NOFAVisualisation/issues
+repository=https://github.com/NINAnor/NOFAVisualisation
 # End of mandatory metadata
 
 # Recommended items:
