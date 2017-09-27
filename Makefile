@@ -40,7 +40,7 @@ SOURCES = \
 	__init__.py \
 	nofa_visualisation.py nofa_visualisation_dialog.py
 
-PLUGINNAME = NOFAVisualisation
+PLUGINNAME = NOFAVisualisation-master
 
 PY_FILES = \
 	__init__.py \
