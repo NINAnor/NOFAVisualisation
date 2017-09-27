@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/plugins/NOFAVisualisation" >
+        <file>icon.png</file>
+    </qresource>
+</RCC>
