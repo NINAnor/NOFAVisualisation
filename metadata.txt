@@ -30,7 +30,7 @@ tags=NOFA,fish,occurrence,Darwin Core
 
 homepage=
 category=Database
-icon=icon.png
+icon=nofavisualisation.png
 # experimental flag
 experimental=True
 
