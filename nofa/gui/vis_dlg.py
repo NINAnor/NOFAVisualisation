@@ -24,7 +24,9 @@
 
 from PyQt4 import uic
 from PyQt4.QtCore import QSettings, QTranslator, qVersion, QCoreApplication
-from PyQt4.QtGui import QDialog, QTreeWidgetItem, QMessageBox
+from PyQt4.QtGui import (
+    QDialog, QMessageBox, QComboBox, QListWidget, QDateEdit, QTreeWidget,
+    QTreeWidgetItem)
 
 from collections import Counter
 
@@ -117,6 +119,9 @@ class VisDlg(QDialog, FORM_CLASS):
         """
         Builds and sets up own widgets.
         """
+
+        self.mindt_de.dateChanged.connect(self.maxdt_de.setMinimumDate)
+        self.maxdt_de.dateChanged.connect(self.mindt_de.setMaximumDate)
 
         self.vis_btn.clicked.connect(self.vis)
 
@@ -268,26 +273,79 @@ class VisDlg(QDialog, FORM_CLASS):
         except:
             self.mc.disp_err()
 
+    def _set_lyr_tbl_cfg(self, layer, vsbl_col_list):
+        """
+        Sets layer table config.
+        
+        :param layer: A reference to the layer.
+        :type layer: QgsVectorLayer
+        :param vsbl_col_list: A list of visible columns.
+        :type vsbl_col_list: list
+        """
+        
+        fields = layer.pendingFields()
+        
+        tableConfig = layer.attributeTableConfig()
+        tableConfig.update(fields)
+         
+        columns = tableConfig.columns()
+
+        if vsbl_col_list:
+            for column in columns:
+                if column.name not in vsbl_col_list:
+                    column.hidden = True
+         
+        tableConfig.setColumns(columns)
+        layer.setAttributeTableConfig(tableConfig)
+
+    def _get_wdg_input(self, wdg):
+        """
+        Return widget input.
+
+            - *QComboBox* -- current text
+            - *QDateEdit* -- date
+            - *QListWidget/QTreeWidget* -- list of selected items,
+                None when no item is selected
+
+        :param wdg: A widget.
+        :type wdg: QWidget
+
+        :returns: Widget input.
+        :rtype: str/datetime.date/list
+        """
+
+        if isinstance(wdg, QComboBox):
+            wdg_input = wdg.currentText()
+        elif isinstance(wdg, QDateEdit):
+            wdg_input = wdg.date()
+        elif isinstance(wdg, (QListWidget, QTreeWidget)):
+            if len(wdg.selectedItems()) != 0:
+                wdg_input = wdg.selectedItems()
+            else:
+                wdg_input = None
+
+        return wdg_input
+
     def vis(self):
         """Visualises data."""
 
         try:
-            geom_type = self.geometry_type.currentText()
-            lang = self.lang_cb.currentText()
-            reliabilityList = list(self.reliab_lw.selectedItems()) if self.reliab_lw.selectedItems() else None
-            taxaList = list(self.txn_lw.selectedItems()) if self.txn_lw.selectedItems() else None
-            adminUnitList = list(self.admu_tw.selectedItems()) if self.admu_tw.selectedItems() else None
-            columnList = list(self.tbl_col_lw.selectedItems()) if self.tbl_col_lw.selectedItems() else None
-            datasetList = list(self.dtst_lw.selectedItems()) if self.dtst_lw.selectedItems() else None
-            visualisation_type = self.visualisation_type.currentText()
-            afterDate = self.mindt_de.date()
-            beforeDate = self.maxdt_de.date()
-            
+            geom_type = self._get_wdg_input(self.geom_type)
+            lang = self._get_wdg_input(self.lang_cb)
+            reliab_list = self._get_wdg_input(self.reliab_lw)
+            txn_list = self._get_wdg_input(self.txn_lw)
+            vsbl_col_list = self._get_wdg_input(self.tbl_col_lw)
+            dtst_list = self._get_wdg_input(self.dtst_lw)
+            vis_type = self._get_wdg_input(self.vis_type_cb)
+            min_dt = self._get_wdg_input(self.mindt_de)
+            max_dt = self._get_wdg_input(self.maxdt_de)
+            admu_list = self._get_wdg_input(self.admu_tw)
+
             sql_where = None
             
-            if beforeDate > afterDate:
-                after = afterDate.toString(u'yyyy-MM-dd')
-                before = beforeDate.toString(u'yyyy-MM-dd')
+            if max_dt > min_dt:
+                after = min_dt.toString(u'yyyy-MM-dd')
+                before = max_dt.toString(u'yyyy-MM-dd')
                 
                 # Select only events which begin or end in the relevant time frame
                 sql_where = u""" WHERE ("dateEnd" >= CAST('{}' AS date)""".format(before)
@@ -296,9 +354,9 @@ class VisDlg(QDialog, FORM_CLASS):
                 sql_where += u""" AND "dateStart" >= CAST('{}' AS date))""".format(after)
             
             # Reliability filter
-            if reliabilityList:
+            if reliab_list:
                 rList = []
-                for r in reliabilityList:
+                for r in reliab_list:
                     rList.append(r.text()) 
                 if not sql_where:
                     sql_where = u""" WHERE "reliability" IN ('{}')""".format(u"""', '""".join(rList))
@@ -307,9 +365,9 @@ class VisDlg(QDialog, FORM_CLASS):
                 sql_where += u""" OR "reliability" IS NULL"""
                     
             # dataset filter
-            if datasetList:
+            if dtst_list:
                 dList = []
-                for d in datasetList:
+                for d in dtst_list:
                     dList.append(d.text().split(' - ')[1]) 
                 if not sql_where:
                     sql_where = u""" WHERE "datasetName" IN ('{}')""".format(u"""', '""".join(dList))
@@ -322,8 +380,8 @@ class VisDlg(QDialog, FORM_CLASS):
             subSelCtry = []
             subSelCty = []
     
-            if adminUnitList:
-                for o in adminUnitList:
+            if admu_list:
+                for o in admu_list:
                     # get countries, counties and test if subunits are selected
                     if o.parent():
                         if o.parent().parent():
@@ -352,26 +410,26 @@ class VisDlg(QDialog, FORM_CLASS):
                 else:
                     sql_where += u""" AND  ({})""".format(admin_where)
                  # For debugging
-                # print adminUnitList
-                # print columnList
+                # print admu_list
+                # print vsbl_col_list
                 # print self.tbl_col_lw.items()
             # Compile list of columns to be selected
             column_list = db.get_tbl_col_list(self.mc.con)
             cList = []
-            if not columnList:
+            if not vsbl_col_list:
                 for c in column_list:
                     if len([col for col in column_list if c.split(' - ')[1] in col]) == 1:
                         cList.append('{}."{}"'.format(c[0], c.split(' - ')[1]))
                     else:
                         cList.append('{0}."{2}" AS "{1}_{2}"'.format(c[0], c.split(' - ')[0], c.split(' - ')[1]))
             else:
-                for c in columnList:
-                    if len([col for col in columnList if c.split(' - ')[1] in col]) == 1:
+                for c in vsbl_col_list:
+                    if len([col for col in vsbl_col_list if c.split(' - ')[1] in col]) == 1:
                         cList.append('{}."{}"'.format(c[0], c.split(' - ')[1]))
                     else:
                         cList.append('{0}."{2}" AS "{1}_{2}"'.format(c[0], c.split(' - ')[0], c.split(' - ')[1]))
-            if 'o."{}"'.format(visualisation_type) not in cList:
-                cList.append('o."{}"'.format(visualisation_type))
+            if 'o."{}"'.format(vis_type) not in cList:
+                cList.append('o."{}"'.format(vis_type))
     
             uri = QgsDataSourceURI()
             # set host name, port, database name, username and password
@@ -398,13 +456,13 @@ class VisDlg(QDialog, FORM_CLASS):
             sql_part3 += u'LEFT JOIN nofa.location AS l USING ("locationID")'
             sql_part3 += u'LEFT JOIN nofa.m_dataset AS d USING ("datasetID")'
             
-            if taxaList is None:
+            if txn_list is None:
                 QMessageBox.warning(
                     self,
                     u'Taxon',
                     u'Select at least one taxon.')
             else:
-                for t in taxaList:
+                for t in txn_list:
                     # Get taxonID
                     cur = self.mc.con.cursor()
                     cur.execute(u"""SELECT "taxonID" FROM nofa."l_taxon" 
@@ -421,7 +479,7 @@ class VisDlg(QDialog, FORM_CLASS):
                         sql_where = 'WHERE TRUE'
     
                     sql = sql_part1 + sql_part2 + sql_part3 + sql_where + ')'
-        
+
                     uri.setDataSource("",sql,"geom","","occurrenceID")
         
                     vlayer = QgsVectorLayer(uri.uri(),layerName,"postgres")
@@ -430,6 +488,7 @@ class VisDlg(QDialog, FORM_CLASS):
                         vlayer.loadNamedStyle(os.path.join(self.plugin_dir, 'introduction_points.qml'))
                     elif vlayer.geometryType() == 2:
                         vlayer.loadNamedStyle(os.path.join(self.plugin_dir, 'introduction_polygons.qml'))
+                    self._set_lyr_tbl_cfg(vlayer, vsbl_col_list)
                     QgsMapLayerRegistry.instance().addMapLayer(vlayer)
         except:
             self.mc.disp_err()
