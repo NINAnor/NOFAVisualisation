@@ -22,17 +22,19 @@
  ***************************************************************************/
 """
 
+from qgis.core import QgsMessageLog
+
 from PyQt4.QtCore import QSettings, QTranslator, qVersion, QCoreApplication
-from PyQt4.QtGui import QAction, QIcon
+from PyQt4.QtGui import QAction, QIcon, QMessageBox
 
 import os
 import psycopg2
 import psycopg2.extras
+import sys
+import traceback
 
 from nofa.gui import vis_dlg, con_dlg
 from nofa import db
-
-import sys
 
 reload(sys)
 sys.setdefaultencoding('utf8')
@@ -160,3 +162,16 @@ class NOFAVisualisation(object):
 
         self.vis_dlg.prep()
         self.vis_dlg.show()
+
+    def disp_err(self):
+        """
+        Displays error in QMessageBox and logs it to plugin message log.
+        """
+
+        type, value, tb = sys.exc_info()
+
+        if type:
+            tb = traceback.format_exc()
+            QgsMessageLog.logMessage(tb, self.app_name)
+
+            QMessageBox.critical(None, u'Error', u'See log for more detail.')

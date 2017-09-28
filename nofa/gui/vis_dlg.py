@@ -105,143 +105,146 @@ class VisDlg(QDialog, FORM_CLASS):
         Prepares the whole plugin to be shown.
         """
 
-        # Fetch species list for UI
-        languages = ['Latin',
-        'English',
-        'Norwegian',
-        'Swedish',
-        'Finish']
-        
-        self.language = 'Norwegian'
-        
-        self.species_names = {'Latin': 'scientificName',
-                         'English': 'vernacularName',
-                         'Norwegian': 'vernacularName_NO',
-                         'Swedish': 'vernacularName_SE',
-                         'Finish': 'vernacularName_FI'}
-        
-        countryCodes = {'Latin': None,
-                         'English': None,
-                         'Norwegian': 'NO',
-                         'Swedish': 'SE',
-                         'Finish': 'FI'}
-
-        #
-        qml = {'establishmentMeans': 'introduction_points',
-               '': ''}
-
-        # Get values from database
-        cur = self.mc.con.cursor()
-        cur.execute(u'SELECT reliability FROM nofa.l_reliability;')
-        reliability = cur.fetchall()
-        
-        # Create a python-list from query result
-        reliability_list = [s[0] for s in reliability]
- 
-        # Inject sorted python-list for species into UI
-        reliability_list.sort()
-        self.reliability.clear()
-        self.reliability.addItems(reliability_list)
- 
-        # Get values from database
-        cur = self.mc.con.cursor()
-        cur.execute(u'SELECT "{0}" FROM nofa.l_taxon GROUP BY "{0}";'.format(self.species_names[self.language]))
-        species = cur.fetchall()
-         
-        # Create a python-list from query result
-        species_list = [s[0] for s in species]
- 
-        # Inject sorted python-list for species into UI
-        species_list.sort()
-        self.taxaList.clear()
-        self.taxaList.addItems(species_list)
- 
-        # Get values from database
-        cur = self.mc.con.cursor()
-        cur.execute(u'SELECT "institutionCode", "datasetName" FROM nofa.m_dataset ORDER BY "institutionCode", "datasetName";')
-        datasets_db = cur.fetchall()
- 
-        # Create a python-list from query result
-        datasets_list = ['{},{}'.format(d[0], d[1]) for d in datasets_db]
- 
-        # Inject sorted python-list for species into UI
-        datasets_list.sort()
-        self.datasets.clear()
-        self.datasets.addItems(datasets_list)
- 
-        # Fetch list of administrative units for filtering
-        cur = self.mc.con.cursor()
-        cur.execute(u"""SELECT "countryCode", "county", "municipality" FROM "AdministrativeUnits"."Fenoscandia_Municipality_polygon";""")
-        adminUnitList = cur.fetchall()
- 
-        # Create a python-list from query result
-        adminUnit_list = []
-        for a in adminUnitList:
-            adminUnit_list.append(u'{0},{1},{2}'.format(u''.join(a[0]), u''.join(a[1]), u''.join(a[2])))
- 
-        # Inject sorted python-list for administrative units into UI
-        adminUnit_list.sort()
-        countryCodes = []
-        counties = []
-        cTWIs = []
-        ccTWIs = []
-        mTWIs = []
-        self.adminUnits.clear()
-          
-        for a in adminUnitList:
-            #print a
-            if a[0] not in countryCodes:
-                countryCodes.append(a[0])
-                ccTWIs.append(QTreeWidgetItem(self.adminUnits, [a[0]]))
-   
-            if a[1] not in counties:
-                counties.append(a[1])
-                ccidx = countryCodes.index(a[0])
-                cTWIs.append(QTreeWidgetItem(ccTWIs[ccidx], [a[1]]))
-                  
-            cidx = counties.index(a[1])
-            mTWIs.append(QTreeWidgetItem(cTWIs[cidx], [a[2]]))
+        try:
+            # Fetch species list for UI
+            languages = ['Latin',
+            'English',
+            'Norwegian',
+            'Swedish',
+            'Finish']
+            
+            self.language = 'Norwegian'
+            
+            self.species_names = {'Latin': 'scientificName',
+                             'English': 'vernacularName',
+                             'Norwegian': 'vernacularName_NO',
+                             'Swedish': 'vernacularName_SE',
+                             'Finish': 'vernacularName_FI'}
+            
+            countryCodes = {'Latin': None,
+                             'English': None,
+                             'Norwegian': 'NO',
+                             'Swedish': 'SE',
+                             'Finish': 'FI'}
+    
+            #
+            qml = {'establishmentMeans': 'introduction_points',
+                   '': ''}
+    
+            # Get values from database
+            cur = self.mc.con.cursor()
+            cur.execute(u'SELECT reliability FROM nofa.l_reliability;')
+            reliability = cur.fetchall()
+            
+            # Create a python-list from query result
+            reliability_list = [s[0] for s in reliability]
+     
+            # Inject sorted python-list for species into UI
+            reliability_list.sort()
+            self.reliability.clear()
+            self.reliability.addItems(reliability_list)
+     
+            # Get values from database
+            cur = self.mc.con.cursor()
+            cur.execute(u'SELECT "{0}" FROM nofa.l_taxon GROUP BY "{0}";'.format(self.species_names[self.language]))
+            species = cur.fetchall()
+             
+            # Create a python-list from query result
+            species_list = [s[0] for s in species]
+     
+            # Inject sorted python-list for species into UI
+            species_list.sort()
+            self.taxaList.clear()
+            self.taxaList.addItems(species_list)
+     
+            # Get values from database
+            cur = self.mc.con.cursor()
+            cur.execute(u'SELECT "institutionCode", "datasetName" FROM nofa.m_dataset ORDER BY "institutionCode", "datasetName";')
+            datasets_db = cur.fetchall()
+     
+            # Create a python-list from query result
+            datasets_list = ['{},{}'.format(d[0], d[1]) for d in datasets_db]
+     
+            # Inject sorted python-list for species into UI
+            datasets_list.sort()
+            self.datasets.clear()
+            self.datasets.addItems(datasets_list)
+     
+            # Fetch list of administrative units for filtering
+            cur = self.mc.con.cursor()
+            cur.execute(u"""SELECT "countryCode", "county", "municipality" FROM "AdministrativeUnits"."Fenoscandia_Municipality_polygon";""")
+            adminUnitList = cur.fetchall()
+     
+            # Create a python-list from query result
+            adminUnit_list = []
+            for a in adminUnitList:
+                adminUnit_list.append(u'{0},{1},{2}'.format(u''.join(a[0]), u''.join(a[1]), u''.join(a[2])))
+     
+            # Inject sorted python-list for administrative units into UI
+            adminUnit_list.sort()
+            countryCodes = []
+            counties = []
+            cTWIs = []
+            ccTWIs = []
+            mTWIs = []
+            self.adminUnits.clear()
               
-  
+            for a in adminUnitList:
+                #print a
+                if a[0] not in countryCodes:
+                    countryCodes.append(a[0])
+                    ccTWIs.append(QTreeWidgetItem(self.adminUnits, [a[0]]))
+       
+                if a[1] not in counties:
+                    counties.append(a[1])
+                    ccidx = countryCodes.index(a[0])
+                    cTWIs.append(QTreeWidgetItem(ccTWIs[ccidx], [a[1]]))
+                      
+                cidx = counties.index(a[1])
+                mTWIs.append(QTreeWidgetItem(cTWIs[cidx], [a[2]]))
                   
-            #countryCodes.append(a[0])
-            #counties.append(a[1])
+      
+                      
+                #countryCodes.append(a[0])
+                #counties.append(a[1])
+                  
+            #counties_set = set(counties)
+            #countryCodes_set = set(countryCodes)
               
-        #counties_set = set(counties)
-        #countryCodes_set = set(countryCodes)
-          
-        #counties = list(counties_set)
-        #countryCodes = list(countryCodes_set)
-  
-          
-        # self.adminUnits.addItems(adminUnit_list)
-        #roots = []
-        #for i in range(len(countryCodes)):
-        #    roots.append(QTreeWidgetItem(self.adminUnits, [countryCodes[i]]))
-  
-        #countiesTWIs = []
-        #for c in range(len(counties)):
-        #    i = counties.index(counties[c])
-        #    countiesTWIs.append(QTreeWidgetItem(roots[i], [counties[c]]))
-  
-        cur = self.mc.con.cursor()
-        cur.execute(u"""SELECT replace(table_name, 'l_','') AS table_name, column_name 
-        FROM information_schema.columns WHERE table_schema = 'nofa' AND 
-        table_name IN ('location', 'event', 'occurrence', 'l_taxon') AND 
-        column_name NOT LIKE '%_serial';""")
-        columns = cur.fetchall()
-  
-        # Create a python-list from query result
-        mandatory_columns = [u'occurrenceID', u'taxonID', u'eventID', u'locationID', u'geom']
-        availableCols = [c[1] for c in columns]
-        self.column_list = []
-        for c in columns:
-            if c[1] not in mandatory_columns:
-                self.column_list.append(u'{0},{1}'.format(u''.join(c[0]), u''.join(c[1])))
+            #counties = list(counties_set)
+            #countryCodes = list(countryCodes_set)
+      
+              
+            # self.adminUnits.addItems(adminUnit_list)
+            #roots = []
+            #for i in range(len(countryCodes)):
+            #    roots.append(QTreeWidgetItem(self.adminUnits, [countryCodes[i]]))
+      
+            #countiesTWIs = []
+            #for c in range(len(counties)):
+            #    i = counties.index(counties[c])
+            #    countiesTWIs.append(QTreeWidgetItem(roots[i], [counties[c]]))
 
-        # Inject sorted python-list for administrative units into UI
-        self.columns.clear()
-        self.columns.addItems(self.column_list)
+            cur = self.mc.con.cursor()
+            cur.execute(u"""SELECT replace(table_name, 'l_','') AS table_name, column_name 
+            FROM information_schema.columns WHERE table_schema = 'nofa' AND 
+            table_name IN ('location', 'event', 'occurrence', 'l_taxon') AND 
+            column_name NOT LIKE '%_serial';""")
+            columns = cur.fetchall()
+
+            # Create a python-list from query result
+            mandatory_columns = [u'occurrenceID', u'taxonID', u'eventID', u'locationID', u'geom']
+            availableCols = [c[1] for c in columns]
+            self.column_list = []
+            for c in columns:
+                if c[1] not in mandatory_columns:
+                    self.column_list.append(u'{0},{1}'.format(u''.join(c[0]), u''.join(c[1])))
+    
+            # Inject sorted python-list for administrative units into UI
+            self.columns.clear()
+            self.columns.addItems(self.column_list)
+        except:
+            self.mc.disp_err()
 
     def vis(self):
         """Visualises data."""
@@ -457,8 +460,4 @@ class VisDlg(QDialog, FORM_CLASS):
                         vlayer.loadNamedStyle(os.path.join(self.plugin_dir, 'introduction_polygons.qml'))
                     QgsMapLayerRegistry.instance().addMapLayer(vlayer)
         except:
-            type, value, tb = sys.exc_info()
-            
-            if type:
-                tb = traceback.format_exc()
-                QgsMessageLog.logMessage(tb, 'NOFAVisualisation')
+            self.mc.disp_err()
