@@ -38,6 +38,7 @@ import os
 import sys
 import traceback
 
+from .. import db
 
 FORM_CLASS, _ = uic.loadUiType(
     os.path.join(os.path.dirname(__file__), 'vis_dlg.ui'))
@@ -84,6 +85,32 @@ class VisDlg(QDialog, FORM_CLASS):
 
         self.setWindowTitle(self.app_name)
 
+        self.lang_list = [
+            'Latin',
+            'English',
+            'Norwegian',
+            'Swedish',
+            'Finish']
+
+        self.cur_lang = 'Norwegian'
+
+        self.lang_spec_dict = {
+            'Latin': 'scientificName',
+            'English': 'vernacularName',
+            'Norwegian': 'vernacularName_NO',
+            'Swedish': 'vernacularName_SE',
+            'Finish': 'vernacularName_FI'}
+
+        self.lang_cntry_code_dict = {
+            'Latin': None,
+            'English': None,
+            'Norwegian': 'NO',
+            'Swedish': 'SE',
+            'Finish': 'FI'}
+
+        self.vis_type_qml_dict = {
+            'establishmentMeans': 'introduction_points'}
+
         self._build_wdgs()
 
     def _build_wdgs(self):
@@ -100,149 +127,137 @@ class VisDlg(QDialog, FORM_CLASS):
 
         pass
 
+    def pop_cb(self, cb_dict):
+        """
+        Populates combo boxe(s).
+
+        :param cb_dict:
+         | A combo box dictionary:
+         |    - key - <combo box name>
+         |    - value - [<fill method>, [<arguments>], <default value>]
+        :type cb_dict: dict
+        """
+
+        for cb, cb_list in cb_dict.items():
+            fnc = cb_list[0]
+            args = cb_list[1]
+            def_val = cb_list[2]
+
+            item_list = fnc(*args)
+
+            if def_val not in item_list:
+                item_list.insert(0, def_val)
+
+            self._add_cb_lw_items(cb, item_list)
+
+            cb.setCurrentIndex(item_list.index(def_val))
+
+    def pop_lw(self, lw_dict):
+        """
+        Populates list widget(s).
+
+        :param lw_dict:
+         | A list widget dictionary:
+         |    - key - <list widge>
+         |    - value - [<fill method>, [<arguments>]]
+        :type lw_dict: dict
+        """
+
+        for lw, lw_list in lw_dict.items():
+            fnc = lw_list[0]
+            args = lw_list[1]
+
+            item_list = fnc(*args)
+            self._add_cb_lw_items(lw, item_list)
+
+    def _add_cb_lw_items(self, wdg, item_list):
+        """
+        Adds items from the item list to a combo box or list widget.
+
+        :param wdg: A combob box or list widget.
+        :type wdg: QComboBox/QListWidget
+        :param item_list: An item list.
+        :type item_list: list
+        """
+
+        wdg.clear()
+
+        for item in item_list:
+            wdg.addItem(item)
+
+    @property
+    def _all_lw_dict(self):
+        """
+        Returns a list widget dictionary for all list widgets.
+
+        :returns:
+         | A list widget dictionary for all list widgets:
+         |    - key - <list widget>
+         |    - value - [<fill method>, [<arguments>]]
+        :rtype: dict
+        """
+
+        all_lw_dict = {
+            self.reliab_lw: [
+                db.get_reliab_list,
+                [self.mc.con]],
+            self.txn_lw: [
+                db.get_txn_name_list_no,
+                [self.mc.con]],
+            self.dtst_lw: [
+                db.get_dtst_inst_list,
+                [self.mc.con]],
+            self.tbl_col_lw: [
+                db.get_tbl_col_list,
+                [self.mc.con]]}
+
+        return all_lw_dict
+
+    def pop_admu_tw(self):
+        """
+        Populates administrative units tree widget.
+        """
+
+        self.admu_tw.clear()
+
+        admu_list = db.get_admu_list(self.mc.con)
+
+        cntry_list = []
+        cnty_list = []
+
+        cntry_item_list = []
+        cnty_item_list = []
+        muni_item_list = []
+          
+        for admu in admu_list:
+            cntry = admu[0]
+            cnty = admu[1]
+            muni = admu[2]
+
+            if cntry not in cntry_list:
+                cntry_list.append(cntry)
+                cntry_item = QTreeWidgetItem(self.admu_tw, [cntry])
+                cntry_item_list.append(cntry_item)
+   
+            if cnty not in cnty_list:
+                cnty_list.append(cnty)
+                cntry_idx = cntry_list.index(cntry)
+                cnty_item = QTreeWidgetItem(cntry_item_list[cntry_idx], [cnty])
+                cnty_item_list.append(cnty_item)
+                  
+            cnty_idx = cnty_list.index(cnty)
+            muni_item = QTreeWidgetItem(cnty_item_list[cnty_idx], [muni])
+            muni_item_list.append(muni_item)
+
     def prep(self):
         """
         Prepares the whole plugin to be shown.
         """
 
         try:
-            # Fetch species list for UI
-            languages = ['Latin',
-            'English',
-            'Norwegian',
-            'Swedish',
-            'Finish']
-            
-            self.language = 'Norwegian'
-            
-            self.species_names = {'Latin': 'scientificName',
-                             'English': 'vernacularName',
-                             'Norwegian': 'vernacularName_NO',
-                             'Swedish': 'vernacularName_SE',
-                             'Finish': 'vernacularName_FI'}
-            
-            countryCodes = {'Latin': None,
-                             'English': None,
-                             'Norwegian': 'NO',
-                             'Swedish': 'SE',
-                             'Finish': 'FI'}
-    
-            #
-            qml = {'establishmentMeans': 'introduction_points',
-                   '': ''}
-    
-            # Get values from database
-            cur = self.mc.con.cursor()
-            cur.execute(u'SELECT reliability FROM nofa.l_reliability;')
-            reliability = cur.fetchall()
-            
-            # Create a python-list from query result
-            reliability_list = [s[0] for s in reliability]
-     
-            # Inject sorted python-list for species into UI
-            reliability_list.sort()
-            self.reliability.clear()
-            self.reliability.addItems(reliability_list)
-     
-            # Get values from database
-            cur = self.mc.con.cursor()
-            cur.execute(u'SELECT "{0}" FROM nofa.l_taxon GROUP BY "{0}";'.format(self.species_names[self.language]))
-            species = cur.fetchall()
-             
-            # Create a python-list from query result
-            species_list = [s[0] for s in species]
-     
-            # Inject sorted python-list for species into UI
-            species_list.sort()
-            self.taxaList.clear()
-            self.taxaList.addItems(species_list)
-     
-            # Get values from database
-            cur = self.mc.con.cursor()
-            cur.execute(u'SELECT "institutionCode", "datasetName" FROM nofa.m_dataset ORDER BY "institutionCode", "datasetName";')
-            datasets_db = cur.fetchall()
-     
-            # Create a python-list from query result
-            datasets_list = ['{},{}'.format(d[0], d[1]) for d in datasets_db]
-     
-            # Inject sorted python-list for species into UI
-            datasets_list.sort()
-            self.datasets.clear()
-            self.datasets.addItems(datasets_list)
-     
-            # Fetch list of administrative units for filtering
-            cur = self.mc.con.cursor()
-            cur.execute(u"""SELECT "countryCode", "county", "municipality" FROM "AdministrativeUnits"."Fenoscandia_Municipality_polygon";""")
-            adminUnitList = cur.fetchall()
-     
-            # Create a python-list from query result
-            adminUnit_list = []
-            for a in adminUnitList:
-                adminUnit_list.append(u'{0},{1},{2}'.format(u''.join(a[0]), u''.join(a[1]), u''.join(a[2])))
-     
-            # Inject sorted python-list for administrative units into UI
-            adminUnit_list.sort()
-            countryCodes = []
-            counties = []
-            cTWIs = []
-            ccTWIs = []
-            mTWIs = []
-            self.adminUnits.clear()
-              
-            for a in adminUnitList:
-                #print a
-                if a[0] not in countryCodes:
-                    countryCodes.append(a[0])
-                    ccTWIs.append(QTreeWidgetItem(self.adminUnits, [a[0]]))
-       
-                if a[1] not in counties:
-                    counties.append(a[1])
-                    ccidx = countryCodes.index(a[0])
-                    cTWIs.append(QTreeWidgetItem(ccTWIs[ccidx], [a[1]]))
-                      
-                cidx = counties.index(a[1])
-                mTWIs.append(QTreeWidgetItem(cTWIs[cidx], [a[2]]))
-                  
-      
-                      
-                #countryCodes.append(a[0])
-                #counties.append(a[1])
-                  
-            #counties_set = set(counties)
-            #countryCodes_set = set(countryCodes)
-              
-            #counties = list(counties_set)
-            #countryCodes = list(countryCodes_set)
-      
-              
-            # self.adminUnits.addItems(adminUnit_list)
-            #roots = []
-            #for i in range(len(countryCodes)):
-            #    roots.append(QTreeWidgetItem(self.adminUnits, [countryCodes[i]]))
-      
-            #countiesTWIs = []
-            #for c in range(len(counties)):
-            #    i = counties.index(counties[c])
-            #    countiesTWIs.append(QTreeWidgetItem(roots[i], [counties[c]]))
+            self.pop_lw(self._all_lw_dict)
 
-            cur = self.mc.con.cursor()
-            cur.execute(u"""SELECT replace(table_name, 'l_','') AS table_name, column_name 
-            FROM information_schema.columns WHERE table_schema = 'nofa' AND 
-            table_name IN ('location', 'event', 'occurrence', 'l_taxon') AND 
-            column_name NOT LIKE '%_serial';""")
-            columns = cur.fetchall()
-
-            # Create a python-list from query result
-            mandatory_columns = [u'occurrenceID', u'taxonID', u'eventID', u'locationID', u'geom']
-            availableCols = [c[1] for c in columns]
-            self.column_list = []
-            for c in columns:
-                if c[1] not in mandatory_columns:
-                    self.column_list.append(u'{0},{1}'.format(u''.join(c[0]), u''.join(c[1])))
-    
-            # Inject sorted python-list for administrative units into UI
-            self.columns.clear()
-            self.columns.addItems(self.column_list)
+            self.pop_admu_tw()
         except:
             self.mc.disp_err()
 
@@ -253,11 +268,11 @@ class VisDlg(QDialog, FORM_CLASS):
             # Get values from GUI
             geometry_type = self.geometry_type.currentText()
             language_type = self.language_type.currentText()
-            reliabilityList = list(self.reliability.selectedItems()) if self.reliability.selectedItems() else None
-            taxaList = list(self.taxaList.selectedItems()) if self.taxaList.selectedItems() else None
-            adminUnitList = list(self.adminUnits.selectedItems()) if self.adminUnits.selectedItems() else None
-            columnList = list(self.columns.selectedItems()) if self.columns.selectedItems() else None
-            datasetList = list(self.datasets.selectedItems()) if self.datasets.selectedItems() else None
+            reliabilityList = list(self.reliab_lw.selectedItems()) if self.reliab_lw.selectedItems() else None
+            taxaList = list(self.txn_lw.selectedItems()) if self.txn_lw.selectedItems() else None
+            adminUnitList = list(self.admu_tw.selectedItems()) if self.admu_tw.selectedItems() else None
+            columnList = list(self.tbl_col_lw.selectedItems()) if self.tbl_col_lw.selectedItems() else None
+            datasetList = list(self.dtst_lw.selectedItems()) if self.dtst_lw.selectedItems() else None
             visualisation_type = self.visualisation_type.currentText()
             afterDate = self.after.date()
             beforeDate = self.before.date()
@@ -289,7 +304,7 @@ class VisDlg(QDialog, FORM_CLASS):
             if datasetList:
                 dList = []
                 for d in datasetList:
-                    dList.append(d.text().split(',')[1]) 
+                    dList.append(d.text().split(' - ')[1]) 
                 if not sql_where:
                     sql_where = u""" WHERE "datasetName" IN ('{}')""".format(u"""', '""".join(dList))
                 else:
@@ -333,21 +348,22 @@ class VisDlg(QDialog, FORM_CLASS):
                  # For debugging
                 # print adminUnitList
                 # print columnList
-                # print self.columns.items()
+                # print self.tbl_col_lw.items()
             # Compile list of columns to be selected
+            column_list = db.get_tbl_col_list(self.mc.con)
             cList = []
             if not columnList:
-                for c in self.column_list:
-                    if len([col for col in self.column_list if c.split(',')[1] in col]) == 1:
-                        cList.append('{}."{}"'.format(c[0], c.split(',')[1]))
+                for c in column_list:
+                    if len([col for col in column_list if c.split(' - ')[1] in col]) == 1:
+                        cList.append('{}."{}"'.format(c[0], c.split(' - ')[1]))
                     else:
-                        cList.append('{0}."{2}" AS "{1}_{2}"'.format(c[0], c.split(',')[0], c.split(',')[1]))
+                        cList.append('{0}."{2}" AS "{1}_{2}"'.format(c[0], c.split(' - ')[0], c.split(' - ')[1]))
             else:
                 for c in columnList:
-                    if len([col for col in columnList if c.split(',')[1] in col]) == 1:
-                        cList.append('{}."{}"'.format(c[0], c.split(',')[1]))
+                    if len([col for col in columnList if c.split(' - ')[1] in col]) == 1:
+                        cList.append('{}."{}"'.format(c[0], c.split(' - ')[1]))
                     else:
-                        cList.append('{0}."{2}" AS "{1}_{2}"'.format(c[0], c.split(',')[0], c.split(',')[1]))
+                        cList.append('{0}."{2}" AS "{1}_{2}"'.format(c[0], c.split(' - ')[0], c.split(' - ')[1]))
             if 'o."{}"'.format(visualisation_type) not in cList:
                 cList.append('o."{}"'.format(visualisation_type))
     
@@ -396,10 +412,10 @@ class VisDlg(QDialog, FORM_CLASS):
             # set host name, port, database name, username and password
             host = self.mc.con_info[self.mc.host_str]
             port = self.mc.con_info[self.mc.port_str]
-            db = self.mc.con_info[self.mc.db_str]
+            db_name = self.mc.con_info[self.mc.db_str]
             user = self.mc.con_info[self.mc.usr_str]
             password = self.mc.con_info[self.mc.pwd_str]
-            uri.setConnection(host, port, db, user, password)
+            uri.setConnection(host, port, db_name, user, password)
     
             if geometry_type == 'Points':
                 geom = "geom"
@@ -427,7 +443,7 @@ class VisDlg(QDialog, FORM_CLASS):
                     # Get taxonID
                     cur = self.mc.con.cursor()
                     cur.execute(u"""SELECT "taxonID" FROM nofa."l_taxon" 
-                                WHERE "{}" = '{}';""".format(self.species_names[self.language], t.text()))
+                                WHERE "{}" = '{}';""".format(self.lang_spec_dict[self.cur_lang], t.text()))
                     taxonID = int(cur.fetchall()[0][0])
                     
                     layerName = t.text()

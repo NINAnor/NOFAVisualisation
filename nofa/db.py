@@ -2256,3 +2256,132 @@ def get_col_def_val(con, schema, tbl, col):
     col_def_val = cur.fetchone()[0]
 
     return col_def_val
+
+
+def get_txn_name_list_no(con):
+    """
+    Returns a list of taxon names in Norwegian.
+
+    :param con: A connection.
+    :type con: psycopg2.connection
+
+    :returns: A list of taxons.
+    :rtype: list
+    """
+
+    cur = _get_db_cur(con)
+    cur.execute(
+        '''
+        SELECT      "vernacularName_NO" n
+        FROM        nofa."l_taxon"
+        ORDER BY    n
+        ''')
+
+    txns = cur.fetchall()
+
+    txn_list = [t[0] for t in txns]
+
+    return txn_list
+
+
+def get_dtst_inst_list(con):
+    """
+    Returns a list of datasets with institution codes
+    `<institution code> - <dataset name>`.
+
+    :param con: A connection.
+    :type con: psycopg2.connection
+
+    :returns: A list of datasets with institution codes
+        `<institution code> - <dataset name>`.
+    :rtype: list
+    """
+
+    cur = _get_db_cur(con)
+    cur.execute(
+        '''
+        SELECT      "institutionCode" i,
+                    "datasetName"
+        FROM        nofa."m_dataset"
+        ORDER BY    i
+        ''')
+
+    dtst_insts = cur.fetchall()
+
+    dtst_inst_list = ['{} - {}'.format(d[0], d[1]) for d in dtst_insts]
+
+    return dtst_inst_list
+
+
+def get_admu_list(con):
+    """
+    Returns a list of administrative units.
+
+    :param con: A connection.
+    :type con: psycopg2.connection
+
+    :returns:
+     | List for all administrative units containing:
+     |    - *str* - country code
+     |    - *str* - county
+     |    - *str* - municipality
+    :rtype: list
+    """
+
+    cur = _get_db_cur(con)
+    cur.execute(
+        '''
+        SELECT      "countryCode" cntry,
+                    "county" cnty,
+                    "municipality" muni
+        FROM        "AdministrativeUnits"."Fenoscandia_Municipality_polygon"
+        ORDER BY    cntry, cnty, muni
+        ''')
+
+    admu_list = cur.fetchall()
+
+    return admu_list
+
+
+def get_tbl_col_list(con):
+    """
+    Returns a list of table and column `<table> - <column>`.
+    Table prefix "l_" is deleted from table name
+    and columns with suffix "_serial" are not included.
+
+    :param con: A connection.
+    :type con: psycopg2.connection
+
+    :returns:
+     | List for all administrative units containing:
+     |    - *str* - country code
+     |    - *str* - county
+     |    - *str* - municipality
+    :rtype: list
+    """
+
+    cur = _get_db_cur(con)
+    cur.execute(
+        '''
+        SELECT      replace(table_name, 'l_','') table_name,
+                    column_name
+        FROM        information_schema.columns
+        WHERE       table_schema = 'nofa'
+                    AND
+                    table_name IN ('location', 'event', 'occurrence', 'l_taxon')
+                    AND
+                    column_name NOT LIKE '%_serial'
+                    AND
+                    column_name NOT IN (
+                        'occurrenceID',
+                        'taxonID',
+                        'eventID',
+                        'locationID',
+                        'geom')
+        ''')
+
+    tbl_cols = cur.fetchall()
+
+    tbl_col_list = ['{} - {}'.format(tc[0], tc[1]) for tc in tbl_cols]
+
+    return tbl_col_list

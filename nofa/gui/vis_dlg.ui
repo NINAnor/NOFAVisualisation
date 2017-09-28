@@ -159,7 +159,7 @@
             </widget>
            </item>
            <item row="6" column="0" colspan="4">
-            <widget class="QListWidget" name="taxaList">
+            <widget class="QListWidget" name="txn_lw">
              <property name="selectionMode">
               <enum>QAbstractItemView::ExtendedSelection</enum>
              </property>
@@ -184,7 +184,7 @@
          <item row="0" column="0">
           <layout class="QGridLayout" name="gridLayout_3">
            <item row="1" column="2" rowspan="2">
-            <widget class="QListWidget" name="reliability">
+            <widget class="QListWidget" name="reliab_lw">
              <property name="sizePolicy">
               <sizepolicy hsizetype="MinimumExpanding" vsizetype="Expanding">
                <horstretch>0</horstretch>
@@ -263,7 +263,7 @@
             </widget>
            </item>
            <item row="5" column="0" colspan="3">
-            <widget class="QTreeWidget" name="adminUnits">
+            <widget class="QTreeWidget" name="admu_tw">
              <property name="selectionMode">
               <enum>QAbstractItemView::ExtendedSelection</enum>
              </property>
@@ -298,7 +298,7 @@
             </widget>
            </item>
            <item row="7" column="0" colspan="3">
-            <widget class="QListWidget" name="datasets">
+            <widget class="QListWidget" name="dtst_lw">
              <property name="selectionMode">
               <enum>QAbstractItemView::ExtendedSelection</enum>
              </property>
@@ -321,7 +321,7 @@
           </widget>
          </item>
          <item row="1" column="0">
-          <widget class="QListWidget" name="columns">
+          <widget class="QListWidget" name="tbl_col_lw">
            <property name="selectionMode">
             <enum>QAbstractItemView::ExtendedSelection</enum>
            </property>
