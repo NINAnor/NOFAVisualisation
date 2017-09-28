@@ -52,11 +52,14 @@ class ConDlg(QDialog):
         :type stat_bar_msg: str
         """
 
-        super(QDialog, self).__init__()
-
-        self.mc = mc
-
-        self._setup_self(con_info, stat_bar_msg)
+        try:
+            super(QDialog, self).__init__()
+    
+            self.mc = mc
+    
+            self._setup_self(con_info, stat_bar_msg)
+        except:
+            self.mc.disp_err()
 
     def _setup_self(self, con_info, stat_bar_msg):
         """
@@ -210,6 +213,8 @@ class ConDlg(QDialog):
             self.mc.con = None
             self.ok_btn.setEnabled(False)
             QMessageBox.warning(self, u'Fail', u'Connection failed.')
+        except:
+            self.mc.disp_err()
         finally:
             self._enable_wdgs(True)
 
