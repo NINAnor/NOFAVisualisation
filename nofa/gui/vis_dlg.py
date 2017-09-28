@@ -258,6 +258,13 @@ class VisDlg(QDialog, FORM_CLASS):
             self.pop_lw(self._all_lw_dict)
 
             self.pop_admu_tw()
+
+            event_min_dt = db.get_event_min_dt(self.mc.con)
+            self.mindt_de.setMinimumDate(event_min_dt)
+            self.mindt_de.setDate(event_min_dt)
+
+            event_max_dt = db.get_event_max_dt(self.mc.con)
+            self.maxdt_de.setDate(event_max_dt)
         except:
             self.mc.disp_err()
 
@@ -265,17 +272,16 @@ class VisDlg(QDialog, FORM_CLASS):
         """Visualises data."""
 
         try:
-            # Get values from GUI
-            geometry_type = self.geometry_type.currentText()
-            language_type = self.language_type.currentText()
+            geom_type = self.geometry_type.currentText()
+            lang = self.lang_cb.currentText()
             reliabilityList = list(self.reliab_lw.selectedItems()) if self.reliab_lw.selectedItems() else None
             taxaList = list(self.txn_lw.selectedItems()) if self.txn_lw.selectedItems() else None
             adminUnitList = list(self.admu_tw.selectedItems()) if self.admu_tw.selectedItems() else None
             columnList = list(self.tbl_col_lw.selectedItems()) if self.tbl_col_lw.selectedItems() else None
             datasetList = list(self.dtst_lw.selectedItems()) if self.dtst_lw.selectedItems() else None
             visualisation_type = self.visualisation_type.currentText()
-            afterDate = self.after.date()
-            beforeDate = self.before.date()
+            afterDate = self.mindt_de.date()
+            beforeDate = self.maxdt_de.date()
             
             sql_where = None
             
@@ -367,47 +373,6 @@ class VisDlg(QDialog, FORM_CLASS):
             if 'o."{}"'.format(visualisation_type) not in cList:
                 cList.append('o."{}"'.format(visualisation_type))
     
-            # self.iface.messageBar().pushWidget(widget, QgsMessageBar.WARNING, duration=3)
-            # define a lookup: value -> (color, label)
-            # introduction = {
-                # 1: ('#f5f532', 'Unknown'),
-                # 2: ('#19cd37', 'Natural'),
-                # 3: ('#c80000', 'Introduced'),
-                # '': ('#ffffff', 'No data')
-            # }
-            # # create the renderer and assign it to a layer
-            # expression = 'establishmentMeansID' # field name
-    
-            # # create a category for each item in introduction
-            # point_categories = []
-            # for introduction_name, (color, label) in introduction.items():
-                # symbol = QgsSymbolV2.defaultSymbol(0)
-                # symbol.setColor(QColor(color))
-                # category = QgsRendererCategoryV2(introduction_name, symbol, label)
-                # point_categories.append(category)
-    
-            # point_renderer = QgsCategorizedSymbolRendererV2(expression, point_categories)
-    
-            # # create a category for each item in introduction
-            # line_categories = []
-            # for introduction_name, (color, label) in introduction.items():
-                # symbol = QgsSymbolV2.defaultSymbol(1)
-                # symbol.setColor(QColor(color))
-                # category = QgsRendererCategoryV2(introduction_name, symbol, label)
-                # line_categories.append(category)
-    
-            # line_renderer = QgsCategorizedSymbolRendererV2(expression, line_categories)
-    
-            # # create a category for each item in introduction
-            # polygon_categories = []
-            # for introduction_name, (color, label) in introduction.items():
-                # symbol = QgsSymbolV2.defaultSymbol(2)
-                # symbol.setColor(QColor(color))
-                # category = QgsRendererCategoryV2(introduction_name, symbol, label)
-                # polygon_categories.append(category)
-    
-            # polygon_renderer = QgsCategorizedSymbolRendererV2(expression, polygon_categories)
-    
             uri = QgsDataSourceURI()
             # set host name, port, database name, username and password
             host = self.mc.con_info[self.mc.host_str]
@@ -417,7 +382,7 @@ class VisDlg(QDialog, FORM_CLASS):
             password = self.mc.con_info[self.mc.pwd_str]
             uri.setConnection(host, port, db_name, user, password)
     
-            if geometry_type == 'Points':
+            if geom_type == 'Points':
                 geom = "geom"
             else:
                 geom = "geom"
@@ -460,16 +425,7 @@ class VisDlg(QDialog, FORM_CLASS):
                     uri.setDataSource("",sql,"geom","","occurrenceID")
         
                     vlayer = QgsVectorLayer(uri.uri(),layerName,"postgres")
-                    # set database schema, table name, geometry column and optionally
-                    # subset (WHERE clause), primary key
-                    # print layerName
-        
-                    # uri = '{0} key={1} table={2} (geom) sql='.format(con_string,'occurrenceID', sql)
-                    #layer = QgsVectorLayer(uri, "testlayer", "postgres")
-        
-                    # uri.setDataSource("nofa", sql, geom,"","occurrenceID")
-                    # vlayer = QgsVectorLayer(uri.uri(), layerName, "postgres")
-                    # vlayer = QgsVectorLayer(uri, layerName, "postgres")
+
                     if vlayer.geometryType() == 0:
                         vlayer.loadNamedStyle(os.path.join(self.plugin_dir, 'introduction_points.qml'))
                     elif vlayer.geometryType() == 2:

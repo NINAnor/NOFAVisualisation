@@ -1291,7 +1291,7 @@ def get_dtst_cnt(con, id):
 
 def ins_dtst(con, dtst_list):
     """
-    Insert an event to the database.
+    Insert a dataset to the database.
 
     :param con: A connection.
     :type con: psycopg2.connection
@@ -2382,6 +2382,56 @@ def get_tbl_col_list(con):
 
     tbl_cols = cur.fetchall()
 
-    tbl_col_list = ['{} - {}'.format(tc[0], tc[1]) for tc in tbl_cols]
+    tbl_col_list = [u'{} - {}'.format(tc[0], tc[1]) for tc in tbl_cols]
 
     return tbl_col_list
+
+
+def get_event_min_dt(con):
+    """
+    Returns an event minimum date.
+
+    :param con: A connection.
+    :type con: psycopg2.connection
+
+    :returns: An event minimum date.
+    :rtype: datetime.date
+    """
+
+    cur = _get_db_cur(con)
+    cur.execute(
+        '''
+        SELECT      MIN(event_date.d)
+        FROM        (   SELECT "dateStart" d FROM nofa."event"
+                        UNION
+                        SELECT "dateEnd" d FROM nofa."event") event_date
+        ''')
+
+    event_min_dt = cur.fetchone()[0]
+
+    return event_min_dt
+
+
+def get_event_max_dt(con):
+    """
+    Returns an event maximum start date.
+
+    :param con: A connection.
+    :type con: psycopg2.connection
+
+    :returns: An event maximum date.
+    :rtype: datetime.date
+    """
+
+    cur = _get_db_cur(con)
+    cur.execute(
+        '''
+        SELECT      MAX(event_date.d)
+        FROM        (   SELECT "dateStart" d FROM nofa."event"
+                        UNION
+                        SELECT "dateEnd" d FROM nofa."event") event_date
+        ''')
+
+    event_max_dt = cur.fetchone()[0]
+
+    return event_max_dt
