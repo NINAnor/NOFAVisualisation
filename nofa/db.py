@@ -2388,7 +2388,6 @@ def get_tbl_col_list(con):
     """
 
     cur = _get_db_cur(con)
-    # delete - 'event', 'l_taxon'
     cur.execute(
         '''
         SELECT      replace(table_name, 'l_','') table_name,
@@ -2396,7 +2395,8 @@ def get_tbl_col_list(con):
         FROM        information_schema.columns
         WHERE       table_schema = 'nofa'
                     AND
-                    table_name IN ('location', 'occurrence')
+                    table_name IN (
+                        'location', 'occurrence', 'event', 'l_taxon')
                     AND
                     column_name NOT LIKE '%_serial'
                     AND
@@ -2405,7 +2405,8 @@ def get_tbl_col_list(con):
                         'taxonID',
                         'eventID',
                         'locationID',
-                        'geom')
+                        'geom',
+                        'establishmentMeans')
         ''')
 
     tbl_cols = cur.fetchall()
@@ -2468,9 +2469,21 @@ def get_event_max_dt(con):
 def get_vis_query(
         con,
         txn_id, min_dt, max_dt, reliab_list, dtst_list,
-        cntry_list, cnty_list, muni_list):
+        cntry_list, cnty_list, muni_list,
+        col_str):
     """
     Returns query that is used for visualisation.
+
+    .. warning::
+    
+       String formatting is only temporary workaround!
+       Unfortunately `psycopg2.sql` module
+       is only available from version 2.7.
+
+       More information here:
+
+          - https://stackoverflow.com/a/27291545
+          - http://initd.org/psycopg/docs/sql.html
 
     :param con: A connection.
     :type con: psycopg2.connection
@@ -2490,19 +2503,23 @@ def get_vis_query(
     :type cnty_list: list
     :param muni_list: Municipality list, None when no item is selected.
     :type muni_list: list
+    :param col_str: A column string.
+    :type col_str: str
 
     :returns: A query that is used for visualisation.
     :rtype: str
     """
 
     cur = _get_db_cur(con)
-    # deleted - t.*, e.*
     vis_query = cur.mogrify(
         '''
-        (   SELECT      o.*,
-                        l.*,
-                        d.*
-                        "geom"
+        (   SELECT      o."occurrenceID",
+                        o."taxonID",
+                        o."eventID",
+                        e."locationID",
+                        o."establishmentMeans",
+                        {}
+                        l."geom"
             FROM        (   SELECT  *
                             FROM    nofa."occurrence"
                             WHERE   "taxonID" = %(txn_id)s) AS o
@@ -2525,15 +2542,15 @@ def get_vis_query(
                         (   (   "countryCode" = ANY(%(cntry_list)s) 
                                 OR
                                 %(cntry_list)s IS NULL)
-                            OR
+                            AND
                             (   "county" = ANY(%(cnty_list)s) 
                                 OR
                                 %(cnty_list)s IS NULL)
-                            OR
+                            AND
                             (   "municipality" = ANY(%(muni_list)s) 
                                 OR
                                 %(muni_list)s IS NULL)))
-        ''',
+        '''.format(col_str),
         {'txn_id': txn_id,
          'min_dt': min_dt,
          'max_dt': max_dt,

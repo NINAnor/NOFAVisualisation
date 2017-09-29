@@ -28,7 +28,8 @@ from PyQt4.QtGui import (
     QDialog, QMessageBox, QComboBox, QListWidget, QDateEdit, QTreeWidget,
     QTreeWidgetItem)
 
-from qgis.core import QgsDataSourceURI, QgsVectorLayer, QgsMapLayerRegistry
+from qgis.core import (
+    QgsDataSourceURI, QgsVectorLayer, QgsMapLayerRegistry, QgsMessageLog)
 
 import logging
 import os
@@ -336,20 +337,6 @@ class VisDlg(QDialog, FORM_CLASS):
             min_dt = self._get_wdg_input(self.mindt_de)
             max_dt = self._get_wdg_input(self.maxdt_de)
             admu_list = self._get_wdg_input(self.admu_tw)
-
-            cntry_list = []
-            cnty_list = []
-            muni_list = []
-    
-            if admu_list:
-                for admu in admu_list:
-                    if admu.parent():
-                        if admu.parent().parent():
-                            muni_list.append(admu.text(0))
-                        else:
-                            cnty_list.append(admu.text(0))
-                    else:
-                        cntry_list.append(admu.text(0))
     
             uri = QgsDataSourceURI()
             host = self.mc.con_info[self.mc.host_str]
@@ -358,13 +345,16 @@ class VisDlg(QDialog, FORM_CLASS):
             user = self.mc.con_info[self.mc.usr_str]
             password = self.mc.con_info[self.mc.pwd_str]
             uri.setConnection(host, port, db_name, user, password)
-            
+
             if txn_list is None:
                 QMessageBox.warning(
                     self,
                     u'Taxon',
                     u'Select at least one taxon.')
             else:
+                cntry_list, cnty_list, muni_list = self._get_admu_lists(
+                    admu_list)
+
                 for txn in txn_list:
                     txn_name = txn.text()
                     txn_id = db.get_txn_id_no(self.mc.con, txn_name)
@@ -374,12 +364,13 @@ class VisDlg(QDialog, FORM_CLASS):
                         txn_id, min_dt, max_dt, reliab_list, dtst_list,
                         self._val_list(cntry_list),
                         self._val_list(cnty_list),
-                        self._val_list(muni_list))
+                        self._val_list(muni_list),
+                        self._get_col_str(vsbl_col_list))
 
                     uri.setDataSource('', vis_query, 'geom','', 'occurrenceID')
                     lyr = QgsVectorLayer(uri.uri(), txn_name, 'postgres')
                     self._set_lyr_stl(lyr)
-                    self._set_lyr_tbl_cfg(lyr, vsbl_col_list)
+                    # self._set_lyr_tbl_cfg(lyr, vsbl_col_list)
 
                     if lyr.isValid():
                         QgsMapLayerRegistry.instance().addMapLayer(lyr)
@@ -390,6 +381,77 @@ class VisDlg(QDialog, FORM_CLASS):
                             u'Layer is not valid.')
         except:
             self.mc.disp_err()
+
+    def _get_admu_lists(self, admu_list):
+        """
+        Returns administrative unit lists:
+
+            - *list* -- country
+            - *list* -- county
+            - *list* -- municipality
+
+        :param admu_list: A list of administrative units.
+        :type admu_list: list
+
+        :returns: A tuple containing:
+         | A tuple containing:
+         |    - *list* -- country
+         |    - *list* -- county
+         |    - *list* -- municipality
+        :rtype: tuple
+        """
+
+        cntry_list = []
+        cnty_list = []
+        muni_list = []
+
+        if admu_list:
+            for admu in admu_list:
+                if admu.parent():
+                    if admu.parent().parent():
+                        muni_list.append(admu.text(0))
+                    else:
+                        cnty_list.append(admu.text(0))
+                else:
+                    cntry_list.append(admu.text(0))
+
+        return (cntry_list, cnty_list, muni_list)
+
+    def _get_col_str(self, vsbl_col_list):
+        """
+        Returns a column string.
+
+        .. warning::
+        
+           String formatting is only temporary workaround!
+           Unfortunately `psycopg2.sql` module
+           is only available from version 2.7.
+
+           More information here:
+
+              - https://stackoverflow.com/a/27291545
+              - http://initd.org/psycopg/docs/sql.html
+
+        :param vsbl_col_list: A list of visible columns,
+            None when no item is selected.
+        :type vsbl_col_list: list/None
+        """
+
+        if not vsbl_col_list:
+            vsbl_col_list = [] 
+            for idx in xrange(self.tbl_col_lw.count()):
+                vsbl_col_list.append(self.tbl_col_lw.item(idx))
+
+        col_str = ''
+
+        for col in vsbl_col_list:
+            splt_str = col.text().split(' - ')
+            tbl = splt_str[0]
+            col = splt_str[1]
+
+            col_str += '{0}."{1}" AS "{2}_{1}",'.format(tbl[:1], col, tbl)
+
+        return col_str
 
     def _val_list(self, input_list):
         """
