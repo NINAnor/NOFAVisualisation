@@ -23,20 +23,16 @@
 """
 
 from PyQt4 import uic
-from PyQt4.QtCore import QSettings, QTranslator, qVersion, QCoreApplication
+from PyQt4.QtCore import QSettings
 from PyQt4.QtGui import (
     QDialog, QMessageBox, QComboBox, QListWidget, QDateEdit, QTreeWidget,
     QTreeWidgetItem)
 
-from collections import Counter
+from qgis.core import QgsDataSourceURI, QgsVectorLayer, QgsMapLayerRegistry
 
-from qgis.core import *
-from qgis.gui import *
-
-import os.path
-import psycopg2
 import logging
 import os
+import psycopg2
 import sys
 import traceback
 
