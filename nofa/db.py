@@ -110,7 +110,7 @@ def ins_event(con, loc_id, event_id, event_list, dtst_id, prj_id, ref_id):
     cur = _get_db_cur(con)
     cur.execute(
         '''
-        INSERT INTO    nofa.event (
+        INSERT INTO    nofa."event" (
                            "locationID",
                            "eventID",
                            "samplingProtocol",
@@ -178,6 +178,33 @@ def get_txn_id(con, txn):
         SELECT      "taxonID"
         FROM        nofa."l_taxon"
         WHERE       "scientificName" = %s
+        ''',
+        (txn,))
+
+    txn_id = cur.fetchone()[0]
+
+    return txn_id
+
+
+def get_txn_id_no(con, txn):
+    """
+    Returns a taxon ID based on the given Norwegian name.
+
+    :param con: A connection.
+    :type con: psycopg2.connection
+    :param txn: A taxon scientific name.
+    :type txn: str
+
+    :returns: A taxon ID.
+    :rtype: int
+    """
+
+    cur = _get_db_cur(con)
+    cur.execute(
+        '''
+        SELECT      "taxonID"
+        FROM        nofa."l_taxon"
+        WHERE       "vernacularName_NO" = %s
         ''',
         (txn,))
 
@@ -334,7 +361,7 @@ def chck_locid(con, locid):
     cur.execute(
         '''
         SELECT      "locationID"
-        FROM        nofa.location
+        FROM        nofa."location"
         WHERE       "locationID" = %s
         ''',
         (locid,))
@@ -366,7 +393,7 @@ def get_locid_from_nvl(con, nvl):
     cur.execute(
         '''
         SELECT      "locationID"
-        FROM        nofa.location
+        FROM        nofa."location"
         WHERE       "no_vatn_lnr" = %s
         ''',
         (nvl,))
@@ -519,7 +546,7 @@ def get_fam_dict(con):
         '''
         SELECT      "scientificName",
                     "family"
-        FROM        nofa.l_taxon
+        FROM        nofa."l_taxon"
         WHERE       "scientificName" IS NOT NULL
                     AND
                     "family" IS NOT NULL
@@ -1302,7 +1329,7 @@ def ins_dtst(con, dtst_list):
     cur = _get_db_cur(con)
     cur.execute(
         '''
-        INSERT INTO     nofa.m_dataset (
+        INSERT INTO     nofa."m_dataset" (
                             "datasetName",
                             "datasetID",
                             "ownerInstitutionCode",
@@ -1352,7 +1379,7 @@ def ins_prj(con, prj_list):
     cur = _get_db_cur(con)
     cur.execute(
         '''
-        INSERT INTO     nofa.m_project (
+        INSERT INTO     nofa."m_project" (
                             "organisation",
                             "projectNumber",
                             "projectName",
@@ -1430,7 +1457,7 @@ def ins_ref(con, ref_list):
     cur = _get_db_cur(con)
     cur.execute(
         '''
-        INSERT INTO     nofa.m_reference (
+        INSERT INTO     nofa."m_reference" (
                             "titel",
                             "author",
                             "year",
@@ -1559,7 +1586,7 @@ def ins_new_loc(con, locid, utm33_geom, verb_loc):
     cur = _get_db_cur(con)
     cur.execute(
         '''
-        INSERT INTO     nofa.location (
+        INSERT INTO     nofa."location" (
                             "locationID",
                             "locationType",
                             "geom",
@@ -1616,7 +1643,7 @@ def get_loc_by_fltrs(con, wb, cntry_code, cnty, muni):
     cur.execute(
         '''
         SELECT      "locationID"
-        FROM        nofa.location loc
+        FROM        nofa."location" loc
         WHERE       (%(waterBody)s IS NULL OR "waterBody" LIKE %(waterBody)s)
                     AND
                     (   %(countryCode)s IS NULL
@@ -2361,6 +2388,7 @@ def get_tbl_col_list(con):
     """
 
     cur = _get_db_cur(con)
+    # delete - 'event', 'l_taxon'
     cur.execute(
         '''
         SELECT      replace(table_name, 'l_','') table_name,
@@ -2368,7 +2396,7 @@ def get_tbl_col_list(con):
         FROM        information_schema.columns
         WHERE       table_schema = 'nofa'
                     AND
-                    table_name IN ('location', 'event', 'occurrence', 'l_taxon')
+                    table_name IN ('location', 'occurrence')
                     AND
                     column_name NOT LIKE '%_serial'
                     AND
@@ -2435,3 +2463,87 @@ def get_event_max_dt(con):
     event_max_dt = cur.fetchone()[0]
 
     return event_max_dt
+
+
+def get_vis_query(
+        con,
+        txn_id, min_dt, max_dt, reliab_list, dtst_list,
+        cntry_list, cnty_list, muni_list):
+    """
+    Returns query that is used for visualisation.
+
+    :param con: A connection.
+    :type con: psycopg2.connection
+    :param txn_id: A taxon ID.
+    :type txn_id: str
+    :param min_dt: A minimum date.
+    :type min_dt: datetime.date
+    :param max_dt: A maximum date.
+    :type max_dt: datetime.date
+    :param reliab_list: Reliability list, None when no item is selected.
+    :type reliab_list: list
+    :param dtst_list: Dataset list, None when no item is selected.
+    :type dtst_list: list
+    :param cntry_list: Country list, None when no item is selected.
+    :type cntry_list: list
+    :param cnty_list: County list, None when no item is selected.
+    :type cnty_list: list
+    :param muni_list: Municipality list, None when no item is selected.
+    :type muni_list: list
+
+    :returns: A query that is used for visualisation.
+    :rtype: str
+    """
+
+    cur = _get_db_cur(con)
+    # deleted - t.*, e.*
+    vis_query = cur.mogrify(
+        '''
+        (   SELECT      o.*,
+                        l.*,
+                        d.*
+                        "geom"
+            FROM        (   SELECT  *
+                            FROM    nofa."occurrence"
+                            WHERE   "taxonID" = %(txn_id)s) AS o
+            LEFT JOIN   nofa."l_taxon" t USING ("taxonID")
+            LEFT JOIN   nofa."event" e USING ("eventID")
+            LEFT JOIN   nofa."location" l USING ("locationID")
+            LEFT JOIN   nofa."m_dataset" d USING ("datasetID")
+            WHERE       "dateStart" >= %(min_dt)s
+                        AND
+                        "dateEnd" < %(max_dt)s
+                        AND
+                        (   "reliability" = ANY(%(reliab_list)s)
+                            OR
+                            %(reliab_list)s IS NULL)
+                        AND
+                        (   "datasetName" = ANY(%(dtst_list)s) 
+                            OR
+                            %(dtst_list)s IS NULL)
+                        AND
+                        (   (   "countryCode" = ANY(%(cntry_list)s) 
+                                OR
+                                %(cntry_list)s IS NULL)
+                            OR
+                            (   "county" = ANY(%(cnty_list)s) 
+                                OR
+                                %(cnty_list)s IS NULL)
+                            OR
+                            (   "municipality" = ANY(%(muni_list)s) 
+                                OR
+                                %(muni_list)s IS NULL)))
+        ''',
+        {'txn_id': txn_id,
+         'min_dt': min_dt,
+         'max_dt': max_dt,
+         'reliab_list': reliab_list,
+         'dtst_list': dtst_list,
+         'cntry_list': cntry_list,
+         'cnty_list': cnty_list,
+         'muni_list': muni_list})
+
+    # remove all whitespace characters (space, tab, newline, return, formfeed)
+    vis_query = ' '.join(vis_query.split())
+
+    return vis_query

@@ -279,8 +279,8 @@ class VisDlg(QDialog, FORM_CLASS):
         
         :param layer: A reference to the layer.
         :type layer: QgsVectorLayer
-        :param vsbl_col_list: A list of visible columns.
-        :type vsbl_col_list: list
+        :param vsbl_col_list: A tuple of visible columns.
+        :type vsbl_col_list: tuple
         """
         
         fields = layer.pendingFields()
@@ -311,13 +311,13 @@ class VisDlg(QDialog, FORM_CLASS):
         :type wdg: QWidget
 
         :returns: Widget input.
-        :rtype: str/datetime.date/list
+        :rtype: str/datetime.date/list/None
         """
 
         if isinstance(wdg, QComboBox):
             wdg_input = wdg.currentText()
         elif isinstance(wdg, QDateEdit):
-            wdg_input = wdg.date()
+            wdg_input = wdg.date().toPyDate()
         elif isinstance(wdg, (QListWidget, QTreeWidget)):
             if len(wdg.selectedItems()) != 0:
                 wdg_input = wdg.selectedItems()
@@ -341,120 +341,27 @@ class VisDlg(QDialog, FORM_CLASS):
             max_dt = self._get_wdg_input(self.maxdt_de)
             admu_list = self._get_wdg_input(self.admu_tw)
 
-            sql_where = None
-            
-            if max_dt > min_dt:
-                after = min_dt.toString(u'yyyy-MM-dd')
-                before = max_dt.toString(u'yyyy-MM-dd')
-                
-                # Select only events which begin or end in the relevant time frame
-                sql_where = u""" WHERE ("dateEnd" >= CAST('{}' AS date)""".format(before)
-                sql_where += u""" AND "dateEnd" < CAST('{}' AS date))""".format(after)
-                sql_where += u""" OR ("dateStart" < CAST('{}' AS date)""".format(before)
-                sql_where += u""" AND "dateStart" >= CAST('{}' AS date))""".format(after)
-            
-            # Reliability filter
-            if reliab_list:
-                rList = []
-                for r in reliab_list:
-                    rList.append(r.text()) 
-                if not sql_where:
-                    sql_where = u""" WHERE "reliability" IN ('{}')""".format(u"""', '""".join(rList))
-                else:
-                    sql_where += u""" AND "reliability" IN ('{}')""".format(u"""', '""".join(rList))
-                sql_where += u""" OR "reliability" IS NULL"""
-                    
-            # dataset filter
-            if dtst_list:
-                dList = []
-                for d in dtst_list:
-                    dList.append(d.text().split(' - ')[1]) 
-                if not sql_where:
-                    sql_where = u""" WHERE "datasetName" IN ('{}')""".format(u"""', '""".join(dList))
-                else:
-                    sql_where += u""" AND "datasetName" IN ('{}')""".format(u"""', '""".join(dList))
-    
-            selMun = []
-            selCtry = []
-            selCty = []
-            subSelCtry = []
-            subSelCty = []
+            cntry_list = []
+            cnty_list = []
+            muni_list = []
     
             if admu_list:
-                for o in admu_list:
-                    # get countries, counties and test if subunits are selected
-                    if o.parent():
-                        if o.parent().parent():
-                            selMun.append(o.text(0))
+                for admu in admu_list:
+                    if admu.parent():
+                        if admu.parent().parent():
+                            muni_list.append(admu.text(0))
                         else:
-                            selCty.append(o.text(0))
+                            cnty_list.append(admu.text(0))
                     else:
-                        selCtry.append(o.text(0))
-    
-                admin_where = None
-                if selCtry:
-                    admin_where = u""""countryCode" IN ('{}')""".format(u"""', '""".join(selCtry))
-                if selCty:
-                    if not admin_where:
-                        admin_where = u""""county" IN ('{}')""".format(u"""', '""".join(selCty))
-                    else:
-                        admin_where += u""" OR "county" IN ('{}')""".format(u"""', '""".join(selCty))
-                if selMun:
-                    if not admin_where:
-                        admin_where = u""""municipality" IN ('{}')""".format(u"""', '""".join(selMun))
-                    else:
-                        admin_where += u""" OR "municipality" IN ('{}')""".format(u"""', '""".join(selMun))
-    
-                if not sql_where:
-                    sql_where = u""" WHERE ({})""".format(admin_where)
-                else:
-                    sql_where += u""" AND  ({})""".format(admin_where)
-                 # For debugging
-                # print admu_list
-                # print vsbl_col_list
-                # print self.tbl_col_lw.items()
-            # Compile list of columns to be selected
-            column_list = db.get_tbl_col_list(self.mc.con)
-            cList = []
-            if not vsbl_col_list:
-                for c in column_list:
-                    if len([col for col in column_list if c.split(' - ')[1] in col]) == 1:
-                        cList.append('{}."{}"'.format(c[0], c.split(' - ')[1]))
-                    else:
-                        cList.append('{0}."{2}" AS "{1}_{2}"'.format(c[0], c.split(' - ')[0], c.split(' - ')[1]))
-            else:
-                for c in vsbl_col_list:
-                    if len([col for col in vsbl_col_list if c.split(' - ')[1] in col]) == 1:
-                        cList.append('{}."{}"'.format(c[0], c.split(' - ')[1]))
-                    else:
-                        cList.append('{0}."{2}" AS "{1}_{2}"'.format(c[0], c.split(' - ')[0], c.split(' - ')[1]))
-            if 'o."{}"'.format(vis_type) not in cList:
-                cList.append('o."{}"'.format(vis_type))
+                        cntry_list.append(admu.text(0))
     
             uri = QgsDataSourceURI()
-            # set host name, port, database name, username and password
             host = self.mc.con_info[self.mc.host_str]
             port = self.mc.con_info[self.mc.port_str]
             db_name = self.mc.con_info[self.mc.db_str]
             user = self.mc.con_info[self.mc.usr_str]
             password = self.mc.con_info[self.mc.pwd_str]
             uri.setConnection(host, port, db_name, user, password)
-    
-            if geom_type == 'Points':
-                geom = "geom"
-            else:
-                geom = "geom"
-    
-            # Generate part of SQL-string for columns to show
-            sql_part1 = u'(SELECT "occurrenceID", geom, "taxonID", "eventID", "locationID"'
-            for c in cList:
-                sql_part1 += u', {}'.format(c)
-            sql_part1 += u' FROM '
-            
-            sql_part3 = u'LEFT JOIN nofa.l_taxon AS t USING ("taxonID") '
-            sql_part3 += u'LEFT JOIN nofa.event AS e USING ("eventID") '
-            sql_part3 += u'LEFT JOIN nofa.location AS l USING ("locationID")'
-            sql_part3 += u'LEFT JOIN nofa.m_dataset AS d USING ("datasetID")'
             
             if txn_list is None:
                 QMessageBox.warning(
@@ -462,33 +369,61 @@ class VisDlg(QDialog, FORM_CLASS):
                     u'Taxon',
                     u'Select at least one taxon.')
             else:
-                for t in txn_list:
-                    # Get taxonID
-                    cur = self.mc.con.cursor()
-                    cur.execute(u"""SELECT "taxonID" FROM nofa."l_taxon" 
-                                WHERE "{}" = '{}';""".format(self.lang_spec_dict[self.cur_lang], t.text()))
-                    taxonID = int(cur.fetchall()[0][0])
-                    
-                    layerName = t.text()
-                    
-                    # Fetch taxon keys from database
-                   
-                    sql_part2 = u' (SELECT * FROM nofa.occurrence WHERE "taxonID" = {}) AS o '.format(taxonID)
-    
-                    if sql_where is None:
-                        sql_where = 'WHERE TRUE'
-    
-                    sql = sql_part1 + sql_part2 + sql_part3 + sql_where + ')'
+                for txn in txn_list:
+                    txn_name = txn.text()
+                    txn_id = db.get_txn_id_no(self.mc.con, txn_name)
 
-                    uri.setDataSource("",sql,"geom","","occurrenceID")
-        
-                    vlayer = QgsVectorLayer(uri.uri(),layerName,"postgres")
+                    vis_query = db.get_vis_query(
+                        self.mc.con,
+                        txn_id, min_dt, max_dt, reliab_list, dtst_list,
+                        self._val_list(cntry_list),
+                        self._val_list(cnty_list),
+                        self._val_list(muni_list))
 
-                    if vlayer.geometryType() == 0:
-                        vlayer.loadNamedStyle(os.path.join(self.plugin_dir, 'introduction_points.qml'))
-                    elif vlayer.geometryType() == 2:
-                        vlayer.loadNamedStyle(os.path.join(self.plugin_dir, 'introduction_polygons.qml'))
-                    self._set_lyr_tbl_cfg(vlayer, vsbl_col_list)
-                    QgsMapLayerRegistry.instance().addMapLayer(vlayer)
+                    uri.setDataSource('', vis_query, 'geom','', 'occurrenceID')
+                    lyr = QgsVectorLayer(uri.uri(), txn_name, 'postgres')
+                    self._set_lyr_stl(lyr)
+                    self._set_lyr_tbl_cfg(lyr, vsbl_col_list)
+
+                    if lyr.isValid():
+                        QgsMapLayerRegistry.instance().addMapLayer(lyr)
+                    else:
+                        QMessageBox.warning(
+                            self,
+                            u'Layer',
+                            u'Layer is not valid.')
         except:
             self.mc.disp_err()
+
+    def _val_list(self, input_list):
+        """
+        Validates the given list.
+
+        :param input_list: An input list.
+        :type input_list: list
+
+        :returns: None when list is empty, the list itself otherwise.
+        :rtype: list/None
+        """
+
+        if len(input_list) == 0:
+            return None
+        else:
+            return input_list
+
+    def _set_lyr_stl(self, lyr):
+        """
+        Sets layer style according to its geometry type.
+
+        :param lyr: A layer.
+        :type lyr: QgsVectorLayer
+        """
+
+        if lyr.geometryType() == 0:
+            qml_fn = 'introduction_points.qml'
+        elif lyr.geometryType() == 2:
+            qml_fn = 'introduction_polygons.qml'
+
+        qml_fp = os.path.join(self.plugin_dir, qml_fn)
+
+        lyr.loadNamedStyle(qml_fp)
