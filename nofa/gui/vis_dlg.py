@@ -361,7 +361,9 @@ class VisDlg(QDialog, FORM_CLASS):
 
                     vis_query = db.get_vis_query(
                         self.mc.con,
-                        txn_id, min_dt, max_dt, reliab_list, dtst_list,
+                        txn_id, min_dt, max_dt,
+                        self._get_txt_list(reliab_list, False),
+                        self._get_txt_list(dtst_list, True),
                         self._val_list(cntry_list),
                         self._val_list(cnty_list),
                         self._val_list(muni_list),
@@ -416,6 +418,34 @@ class VisDlg(QDialog, FORM_CLASS):
                     cntry_list.append(admu.text(0))
 
         return (cntry_list, cnty_list, muni_list)
+
+    def _get_txt_list(self, lwi_list, split_dash):
+        """
+        Returns a list of strings.
+
+        Converts a list of QListWidgetItems to a list of QListWidgetItems' text.
+
+        When `split_dash` is True, text is split with ` - ` and only second part
+        remains. This is intended for dataset strings.
+
+        :param lwi_list: A list of QListWidgetItems.
+        :type lwi_list: list
+        :param split: True to split with ` - ` and use second part,
+            False otherwise.
+        :type split: bool
+
+        :returns: A list of QListWidgetItems' text, None when input is None.
+        :rtype: list/None
+        """
+
+        if lwi_list:
+            txt_list =  [lwi.text() for lwi in lwi_list]
+            if split_dash:
+                txt_list = [txt.split(' - ')[1] for txt in txt_list]
+        else:
+            txt_list = lwi_list
+
+        return txt_list
 
     def _get_col_str(self, vsbl_col_list):
         """
