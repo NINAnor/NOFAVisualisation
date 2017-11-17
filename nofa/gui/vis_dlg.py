@@ -395,7 +395,7 @@ class VisDlg(QDialog, FORM_CLASS):
         :param admu_list: A list of administrative units.
         :type admu_list: list
 
-        :returns: A tuple containing:
+        :returns:
          | A tuple containing:
          |    - *list* -- country
          |    - *list* -- county
