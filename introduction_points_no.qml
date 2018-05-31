@@ -184,10 +184,10 @@
   </edittypes>
   <renderer-v2 attr="establishmentMeans" forceraster="0" symbollevels="1" type="categorizedSymbol" enableorderby="0">
     <categories>
-      <category render="true" symbol="0" value="introduced" label="Introduced"/>
-      <category render="true" symbol="1" value="unknown" label="Unknown"/>
-      <category render="true" symbol="2" value="native" label="Native"/>
-      <category render="true" symbol="3" value="" label="No data"/>
+      <category render="true" symbol="0" value="introduced" label="Introdusert"/>
+      <category render="true" symbol="1" value="unknown" label="Ukjent"/>
+      <category render="true" symbol="2" value="native" label="Stedegen"/>
+      <category render="true" symbol="3" value="" label="Ingen data"/>
     </categories>
     <symbols>
       <symbol alpha="1" clip_to_extent="1" type="marker" name="0">
