@@ -101,8 +101,8 @@ class VisDlg(QDialog, FORM_CLASS):
             'Finish': 'vernacularName_FI'}
 
         self.lang_cntry_code_dict = {
-            'Latin': None,
-            'English': None,
+            'Latin': 'EN',
+            'English': 'EN',
             'Norwegian': 'NO',
             'Swedish': 'SE',
             'Finish': 'FI'}
@@ -371,7 +371,6 @@ class VisDlg(QDialog, FORM_CLASS):
 
                     uri.setDataSource('', vis_query, 'geom','', 'occurrenceID')
                     lyr = QgsVectorLayer(uri.uri(), txn_name, 'postgres')
-                    self._set_lyr_stl(lyr)
                     # self._set_lyr_tbl_cfg(lyr, vsbl_col_list)
 
                     if lyr.isValid():
@@ -381,6 +380,9 @@ class VisDlg(QDialog, FORM_CLASS):
                             self,
                             u'Layer',
                             u'Layer is not valid.')
+
+                    # Add layer style depending on language
+                    self._set_lyr_stl(lyr, self.lang_cntry_code_dict[lang])
         except:
             self.mc.disp_err()
 
@@ -499,7 +501,7 @@ class VisDlg(QDialog, FORM_CLASS):
         else:
             return input_list
 
-    def _set_lyr_stl(self, lyr):
+    def _set_lyr_stl(self, lyr, lang):
         """
         Sets layer style according to its geometry type.
 
@@ -508,7 +510,7 @@ class VisDlg(QDialog, FORM_CLASS):
         """
 
         if lyr.geometryType() == 0:
-            qml_fn = 'introduction_points.qml'
+            qml_fn = 'introduction_points_{}.qml'.format(lang)
         elif lyr.geometryType() == 2:
             qml_fn = 'introduction_polygons.qml'
 
