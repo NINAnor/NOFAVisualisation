@@ -2527,7 +2527,7 @@ def get_vis_query(
             LEFT JOIN   nofa."event" e USING ("eventID")
             LEFT JOIN   nofa."location" l USING ("locationID")
             LEFT JOIN   nofa."m_dataset" d USING ("datasetID")
-            WHERE       "dateStart" >= %(min_dt)s
+            WHERE       ("dateStart" >= %(min_dt)s OR "dateStart" IS NULL)
                         AND
                         "dateEnd" < %(max_dt)s
                         AND
